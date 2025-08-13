@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Générateur de PDF – Détail de l’intervention</title>
+
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <!-- html2pdf.js bundle -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+      background: #f6f6f6;
+    }
+
+    body {
+      padding: 10px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    .with-unit {
+      position: relative;
+      margin-top: 4px;
+    }
+
+    .with-unit input {
+      padding-right: 30px;
+    }
+
+    .with-unit .unit {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #555;
+      pointer-events: none;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    button {
+      margin-top: 16px;
+      background: #007bff;
+      color: #fff;
+      padding: 8px 14px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* SECTION PRODUITS DYNAMIQUES */
+    .product-item {
+      margin-bottom: 12px;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+
+    #addProductBtn, #removeProductBtn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      font-size: 24px;
+      line-height: 1;
+      text-align: center;
+      margin-left: 8px;
+    }
+
+    #addProductBtn {
+      background: #28a745;
+    }
+
+    #removeProductBtn {
+      background: #dc3545;
+    }
+
+    /* TEMPLATE PDF */
+    .invoice {
+      position: relative;
+      width: 190mm;
+      min-height: 277mm;
+      padding: 10mm;
+      background: #fff;
+      box-sizing: border-box;
+      display: none;
+      line-height: 1.4;
+      font-size: 12pt;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .invoice-title {
+      text-transform: uppercase;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 4px;
+      margin-bottom: 12px;
+      font-size: 14pt;
+    }
+
+    .invoice-facture {
+      margin-bottom: 12px;
+      font-size: 12pt;
+    }
+
+    .client-box {
+      border: 1px solid #ccc;
+      padding: 8px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      word-break: break-word;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      border: 1px solid #000;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f0f0;
+    }
+
+    .closing {
+      margin-top: 20px;
+      font-size: 12pt;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 10mm;
+      left: 10mm;
+      right: 10mm;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10pt;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>📄 Générateur – Détail de l’intervention</h1>
+
+  <label for="facturationNumber">N° de facturation :</label>
+  <input type="text" id="facturationNumber" value="FAC-" />
+
+  <div id="clientInfo" class="section">
+    <label>Info client associée :</label>
+    <div class="client-box">
+      <p><strong>Nom :</strong> <span id="clientNom">—</span></p>
+      <p><strong>Prénom :</strong> <span id="clientPrenom">—</span></p>
+      <p><strong>Lieu :</strong> <span id="clientLieu">—</span></p>
+    </div>
+  </div>
+
+  <!-- Section Produits + Quantités dynamiques -->
+  <div class="section">
+    <label>Produits et quantités :</label>
+    <div id="productContainer">
+      <div class="product-item">
+        <label for="prodName-1">Produit utilisé n°1 :</label>
+        <input type="text" id="prodName-1" class="prodName" placeholder="Nom du produit" />
+
+        <label for="prodQty-1">Quantité du produit n°1 :</label>
+        <div class="with-unit">
+          <input type="text" id="prodQty-1" class="prodQty" placeholder="Quantité" />
+          <span class="unit">L</span>
+        </div>
+      </div>
+    </div>
+    <button type="button" id="addProductBtn">+</button>
+    <button type="button" id="removeProductBtn">–</button>
+  </div>
+
+  <!-- Section Épandage -->
+  <div class="section">
+    <label for="epandageProduit">Produit à épandre :</label>
+    <input type="text" id="epandageProduit" placeholder="Nom du produit" />
+
+    <label for="epandageConcentration">Concentration produit :</label>
+    <div class="with-unit">
+      <input type="text" id="epandageConcentration" placeholder="Ex : 100" />
+      <span class="unit">Kg/ha</span>
+    </div>
+  </div>
+
+  <!-- Météo -->
+  <div class="section">
+    <label>Température extérieure</label>
+    <div class="with-unit">
+      <input type="text" id="tempExterieure" placeholder="Ex : 25" />
+      <span class="unit">°C</span>
+    </div>
+
+    <label>Temps</label>
+    <select id="temps">
+      <option value="Ensoleillé">Ensoleillé</option>
+      <option value="Couvert">Couvert</option>
+      <option value="Nuageux">Nuageux</option>
+      <option value="Très nuageux">Très nuageux</option>
+    </select>
+
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:12px;">
+      <div style="flex:1; min-width:120px;">
+        <label>Vent</label>
+        <select id="vent">
+          <option value="Néant">Néant</option>
+          <option value="Faible">Faible</option>
+          <option value="Modéré">Modéré</option>
+          <option value="Fort">Fort</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:120px;">
+        <label>Direction</label>
+        <select id="direction">
+          <option value="Néant">Néant</option>
+          <option value="N">N</option>
+          <option value="NO">NO</option>
+          <option value="O">O</option>
+          <option value="SO">SO</option>
+          <option value="S">S</option>
+          <option value="SE">SE</option>
+          <option value="E">E</option>
+          <option value="NE">NE</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <button id="btnGenerate">Générer le PDF</button>
+
+  <!-- TEMPLATE PDF -->
+  <div id="rapportPDF" class="invoice">
+    <div class="content">
+      <div id="invoiceTitle" class="invoice-title"></div>
+
+      <div class="invoice-facture">
+        <strong>N° de facturation associé :</strong>
+        <span id="pdfFactureNumber"></span>
+      </div>
+
+      <div class="client-box">
+        <p><strong>Nom :</strong> <span id="pdfClientNom"></span></p>
+        <p><strong>Prénom :</strong> <span id="pdfClientPrenom"></span></p>
+        <p><strong>Lieu :</strong> <span id="pdfClientLieu"></span></p>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Catégorie</th>
+            <th>Information</th>
+            <th>Unité</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Produits utilisés</td>
+            <td id="pdfProdUtilises"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Quantité de produits</td>
+            <td id="pdfQuantiteProduits"></td>
+            <td>L</td>
+          </tr>
+          <tr>
+            <td>Épandage engrais</td>
+            <td id="pdfEpandageProduct"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Concentration produit</td>
+            <td id="pdfEpandageConcentration"></td>
+            <td>Kg/ha</td>
+          </tr>
+          <tr style="background:#f0f0f0; font-weight:bold;">
+            <td colspan="3">Paramètres Météo</td>
+          </tr>
+          <tr>
+            <td>Température extérieure</td>
+            <td id="pdfTempExterieure"></td>
+            <td>°C</td>
+          </tr>
+          <tr>
+            <td>Temps</td>
+            <td id="pdfTemps"></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>Vent</td>
+            <td id="pdfVent"></td>
+            <td>Km/h</td>
+          </tr>
+          <tr>
+            <td>Direction</td>
+            <td id="pdfDirection"></td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="closing">
+        En vous remerciant de votre confiance.<br/>
+        Cordialement.
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>SIRET : 894 329 564 00013</strong>
+      <strong>DRONE X-PLORE</strong>
+    </div>
+  </div>
+
+  <script>
+    // Firebase init
+    const firebaseConfig = {
+      apiKey: "AIzaSyCRO_KlygXQ3TkaAXfBDSxrxY5rA4bZCtc",
+      authDomain: "drone-traitement-vigne.firebaseapp.com",
+      databaseURL: "https://drone-traitement-vigne-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "drone-traitement-vigne",
+      storageBucket: "drone-traitement-vigne.appspot.com",
+      messagingSenderId: "494266480932",
+      appId: "1:494266480932:web:84e794ccd1b61c23351bb1",
+      measurementId: "G-EY62N6QG3X"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Préchargement client existant
+    document.getElementById('facturationNumber')
+      .addEventListener('blur', async e => {
+        const num = e.target.value.trim();
+        if (!num.startsWith("FAC-")) return;
+        const snap = await db.ref('Factures/' + num).once('value');
+        if (snap.exists()) {
+          const d = snap.val();
+          document.getElementById('clientNom').textContent    = d.nom    || '—';
+          document.getElementById('clientPrenom').textContent = d.prenom || '—';
+          document.getElementById('clientLieu').textContent   = d.lieu   || '—';
+        }
+      });
+
+    // Gestion dynamique des produits
+    let productCount = 1;
+    document.getElementById('addProductBtn')
+      .addEventListener('click', () => {
+        productCount++;
+        const container = document.getElementById('productContainer');
+        const item = document.createElement('div');
+        item.className = 'product-item';
+        item.innerHTML = `
+          <label for="prodName-${productCount}">Produit utilisé n°${productCount} :</label>
+          <input type="text" id="prodName-${productCount}" class="prodName" placeholder="Nom du produit" />
+
+          <label for="prodQty-${productCount}">Quantité du produit n°${productCount} :</label>
+          <div class="with-unit">
+            <input type="text" id="prodQty-${productCount}" class="prodQty" placeholder="Quantité" />
+            <span class="unit">L</span>
+          </div>`;
+        container.appendChild(item);
+      });
+
+    document.getElementById('removeProductBtn')
+      .addEventListener('click', () => {
+        if (productCount > 1) {
+          const container = document.getElementById('productContainer');
+          container.removeChild(container.lastElementChild);
+          productCount--;
+        }
+      });
+
+    // Génération du PDF
+    document.getElementById('btnGenerate')
+      .addEventListener('click', async () => {
+        const num = document.getElementById('facturationNumber').value.trim() || '—';
+        document.getElementById('invoiceTitle').textContent     = `Détail-${num}`;
+        document.getElementById('pdfFactureNumber').textContent = num;
+
+        // Client
+        const snap = await db.ref('Factures/' + num).once('value');
+        if (snap.exists()) {
+          const d = snap.val();
+          document.getElementById('pdfClientNom').textContent    = d.nom    || '—';
+          document.getElementById('pdfClientPrenom').textContent = d.prenom || '—';
+          document.getElementById('pdfClientLieu').textContent   = d.lieu   || '—';
+        }
+
+        // Produits & quantités dynamiques
+        const prodNames = Array.from(document.querySelectorAll('.prodName'))
+          .map(el => el.value.trim() || '—');
+        const prodQtys = Array.from(document.querySelectorAll('.prodQty'))
+          .map(el => el.value.trim() || '—');
+
+        const prodHtml = prodNames
+          .map((name, i) => `- P${i+1}: ${name}`)
+          .join('<br/>');
+        const qtyHtml = prodQtys
+          .map((qty, i) => `- P${i+1}: ${qty}`)
+          .join('<br/>');
+
+        document.getElementById('pdfProdUtilises').innerHTML      = prodHtml;
+        document.getElementById('pdfQuantiteProduits').innerHTML = qtyHtml;
+
+        // Épandage
+        const epProd = document.getElementById('epandageProduit').value.trim() || '—';
+        const epConc = document.getElementById('epandageConcentration').value.trim() || '—';
+        document.getElementById('pdfEpandageProduct').textContent       = epProd;
+        document.getElementById('pdfEpandageConcentration').textContent = epConc;
+
+        // Météo
+        document.getElementById('pdfTempExterieure').textContent = 
+          document.getElementById('tempExterieure').value.trim() || '—';
+        document.getElementById('pdfTemps').textContent          = 
+          document.getElementById('temps').value;
+        document.getElementById('pdfVent').textContent           = 
+          document.getElementById('vent').value;
+        document.getElementById('pdfDirection').textContent      = 
+          document.getElementById('direction').value;
+
+        // Affiche + scroll top
+        const tpl = document.getElementById('rapportPDF');
+        tpl.style.display = 'block';
+        window.scrollTo(0, 0);
+
+        // Options pdf
+        const opt = {
+          margin:      [10, 10, 10, 10],
+          filename:    `Détail-${num}.pdf`,
+          jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' },
+          html2canvas: { scale:2, scrollY:0 }
+        };
+
+        await html2pdf().set(opt).from(tpl).save();
+        tpl.style.display = 'none';
+      });
+  </script>
+</body>
+</html>
