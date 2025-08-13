@@ -2,14 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Générateur de PDF – Détail de l’intervention</title>
-
-  <!-- Firebase v8 -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
-  <!-- html2pdf.js bundle -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Générateur – Détail de l’intervention</title>
+  <link rel="manifest" href="manifest.json" />
 
   <style>
     html, body {
@@ -19,55 +14,64 @@
       background: #f6f6f6;
     }
 
-    body {
-      padding: 10px;
+    .app-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 16px;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      color: #333;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 12px;
+      text-align: center;
     }
 
     label {
       display: block;
       font-weight: bold;
       margin-top: 12px;
+      font-size: 0.95rem;
+    }
+
+    input, select, button {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 1rem;
+      margin-top: 4px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    button {
+      background: #001f3f;
+      color: #fff;
+      border: none;
+      cursor: pointer;
     }
 
     .with-unit {
       position: relative;
-      margin-top: 4px;
     }
 
     .with-unit input {
-      padding-right: 30px;
+      padding-right: 40px;
     }
 
     .with-unit .unit {
       position: absolute;
-      right: 8px;
+      right: 12px;
       top: 50%;
       transform: translateY(-50%);
       color: #555;
       pointer-events: none;
+      font-size: 0.9rem;
     }
 
-    input, select {
-      width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-
-    button {
-      margin-top: 16px;
-      background: #007bff;
-      color: #fff;
-      padding: 8px 14px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    /* SECTION PRODUITS DYNAMIQUES */
     .product-item {
       margin-bottom: 12px;
       padding: 8px;
@@ -76,40 +80,29 @@
       background: #fafafa;
     }
 
-    #addProductBtn, #removeProductBtn {
-      width: 36px;
-      height: 36px;
-      padding: 0;
-      font-size: 24px;
-      line-height: 1;
-      text-align: center;
-      margin-left: 8px;
-    }
-
-    #addProductBtn {
-      background: #28a745;
-    }
-
+    #addProductBtn,
     #removeProductBtn {
-      background: #dc3545;
+      width: 48px;
+      height: 48px;
+      font-size: 1.25rem;
+      padding: 0;
+      margin-left: 8px;
+      color: #fff;
     }
 
-    /* TEMPLATE PDF */
+    #addProductBtn { background: #28a745; }
+    #removeProductBtn { background: #dc3545; }
+
     .invoice {
+      display: none;
       position: relative;
       width: 190mm;
       min-height: 277mm;
       padding: 10mm;
       background: #fff;
       box-sizing: border-box;
-      display: none;
-      line-height: 1.4;
       font-size: 12pt;
-    }
-
-    .content {
-      position: relative;
-      z-index: 1;
+      line-height: 1.4;
     }
 
     .invoice-title {
@@ -165,112 +158,109 @@
       display: flex;
       justify-content: space-between;
       font-size: 10pt;
-      z-index: 1;
     }
   </style>
 </head>
-
 <body>
-  <h1>📄 Générateur – Détail de l’intervention</h1>
+  <div class="app-container">
+    <h1>📄 Générateur – Détail de l’intervention</h1>
 
-  <label for="facturationNumber">N° de facturation :</label>
-  <input type="text" id="facturationNumber" value="FAC-" />
+    <label for="facturationNumber">N° de facturation :</label>
+    <input type="text" id="facturationNumber" value="FAC-" />
 
-  <div id="clientInfo" class="section">
-    <label>Info client associée :</label>
-    <div class="client-box">
-      <p><strong>Nom :</strong> <span id="clientNom">—</span></p>
-      <p><strong>Prénom :</strong> <span id="clientPrenom">—</span></p>
-      <p><strong>Lieu :</strong> <span id="clientLieu">—</span></p>
+    <div id="clientInfo" class="section">
+      <label>Info client associée :</label>
+      <div class="client-box">
+        <p><strong>Nom :</strong> <span id="clientNom">—</span></p>
+        <p><strong>Prénom :</strong> <span id="clientPrenom">—</span></p>
+        <p><strong>Lieu :</strong> <span id="clientLieu">—</span></p>
+      </div>
     </div>
-  </div>
 
-  <!-- Section Produits + Quantités dynamiques -->
-  <div class="section">
-    <label>Produits et quantités :</label>
-    <div id="productContainer">
-      <div class="product-item">
-        <label for="prodName-1">Produit utilisé n°1 :</label>
-        <input type="text" id="prodName-1" class="prodName" placeholder="Nom du produit" />
+    <div class="section">
+      <label>Produits et quantités :</label>
+      <div id="productContainer">
+        <div class="product-item">
+          <label for="prodName-1">Produit n°1 :</label>
+          <input type="text" id="prodName-1" class="prodName" placeholder="Nom du produit" />
 
-        <label for="prodQty-1">Quantité du produit n°1 :</label>
-        <div class="with-unit">
-          <input type="text" id="prodQty-1" class="prodQty" placeholder="Quantité" />
-          <span class="unit">L</span>
+          <label for="prodQty-1">Quantité n°1 :</label>
+          <div class="with-unit">
+            <input type="text" id="prodQty-1" class="prodQty" placeholder="Quantité" />
+            <span class="unit">L</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex; margin-top:8px;">
+        <button type="button" id="addProductBtn">+</button>
+        <button type="button" id="removeProductBtn">–</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <label for="epandageProduit">Produit à épandre :</label>
+      <input type="text" id="epandageProduit" placeholder="Nom du produit" />
+
+      <label for="epandageConcentration">Concentration :</label>
+      <div class="with-unit">
+        <input type="text" id="epandageConcentration" placeholder="Ex : 100" />
+        <span class="unit">Kg/ha</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <label>Température extérieure :</label>
+      <div class="with-unit">
+        <input type="text" id="tempExterieure" placeholder="Ex : 25" />
+        <span class="unit">°C</span>
+      </div>
+
+      <label>Temps :</label>
+      <select id="temps">
+        <option value="Ensoleillé">Ensoleillé</option>
+        <option value="Couvert">Couvert</option>
+        <option value="Nuageux">Nuageux</option>
+        <option value="Très nuageux">Très nuageux</option>
+      </select>
+
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+        <div style="flex:1; min-width:120px;">
+          <label>Vent :</label>
+          <select id="vent">
+            <option value="Néant">Néant</option>
+            <option value="Faible">Faible</option>
+            <option value="Modéré">Modéré</option>
+            <option value="Fort">Fort</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:120px;">
+          <label>Direction :</label>
+          <select id="direction">
+            <option value="Néant">Néant</option>
+            <option value="N">N</option>
+            <option value="NO">NO</option>
+            <option value="O">O</option>
+            <option value="SO">SO</option>
+            <option value="S">S</option>
+            <option value="SE">SE</option>
+            <option value="E">E</option>
+            <option value="NE">NE</option>
+          </select>
         </div>
       </div>
     </div>
-    <button type="button" id="addProductBtn">+</button>
-    <button type="button" id="removeProductBtn">–</button>
+
+    <button id="btnGenerate">Générer le PDF</button>
   </div>
 
-  <!-- Section Épandage -->
-  <div class="section">
-    <label for="epandageProduit">Produit à épandre :</label>
-    <input type="text" id="epandageProduit" placeholder="Nom du produit" />
-
-    <label for="epandageConcentration">Concentration produit :</label>
-    <div class="with-unit">
-      <input type="text" id="epandageConcentration" placeholder="Ex : 100" />
-      <span class="unit">Kg/ha</span>
-    </div>
-  </div>
-
-  <!-- Météo -->
-  <div class="section">
-    <label>Température extérieure</label>
-    <div class="with-unit">
-      <input type="text" id="tempExterieure" placeholder="Ex : 25" />
-      <span class="unit">°C</span>
-    </div>
-
-    <label>Temps</label>
-    <select id="temps">
-      <option value="Ensoleillé">Ensoleillé</option>
-      <option value="Couvert">Couvert</option>
-      <option value="Nuageux">Nuageux</option>
-      <option value="Très nuageux">Très nuageux</option>
-    </select>
-
-    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:12px;">
-      <div style="flex:1; min-width:120px;">
-        <label>Vent</label>
-        <select id="vent">
-          <option value="Néant">Néant</option>
-          <option value="Faible">Faible</option>
-          <option value="Modéré">Modéré</option>
-          <option value="Fort">Fort</option>
-        </select>
-      </div>
-      <div style="flex:1; min-width:120px;">
-        <label>Direction</label>
-        <select id="direction">
-          <option value="Néant">Néant</option>
-          <option value="N">N</option>
-          <option value="NO">NO</option>
-          <option value="O">O</option>
-          <option value="SO">SO</option>
-          <option value="S">S</option>
-          <option value="SE">SE</option>
-          <option value="E">E</option>
-          <option value="NE">NE</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <button id="btnGenerate">Générer le PDF</button>
-
-  <!-- TEMPLATE PDF -->
+  <!-- TEMPLATE PDF (invisible à l’écran) -->
   <div id="rapportPDF" class="invoice">
     <div class="content">
       <div id="invoiceTitle" class="invoice-title"></div>
-
       <div class="invoice-facture">
         <strong>N° de facturation associé :</strong>
         <span id="pdfFactureNumber"></span>
       </div>
-
       <div class="client-box">
         <p><strong>Nom :</strong> <span id="pdfClientNom"></span></p>
         <p><strong>Prénom :</strong> <span id="pdfClientPrenom"></span></p>
@@ -337,14 +327,23 @@
         Cordialement.
       </div>
     </div>
-
     <div class="footer">
       <strong>SIRET : 894 329 564 00013</strong>
       <strong>DRONE X-PLORE</strong>
     </div>
   </div>
 
+  <!-- Librairies -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
   <script>
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+
     // Firebase init
     const firebaseConfig = {
       apiKey: "AIzaSyCRO_KlygXQ3TkaAXfBDSxrxY5rA4bZCtc",
@@ -359,7 +358,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // Préchargement client existant
+    // Préchargement client
     document.getElementById('facturationNumber')
       .addEventListener('blur', async e => {
         const num = e.target.value.trim();
@@ -373,99 +372,91 @@
         }
       });
 
-    // Gestion dynamique des produits
+    // Gestion dynamique produits
     let productCount = 1;
-    document.getElementById('addProductBtn')
-      .addEventListener('click', () => {
-        productCount++;
+    document.getElementById('addProductBtn').addEventListener('click', () => {
+      productCount++;
+      const container = document.getElementById('productContainer');
+      const item = document.createElement('div');
+      item.className = 'product-item';
+      item.innerHTML = `
+        <label for="prodName-${productCount}">Produit n°${productCount} :</label>
+        <input type="text" id="prodName-${productCount}" class="prodName" placeholder="Nom du produit" />
+
+        <label for="prodQty-${productCount}">Quantité n°${productCount} :</label>
+        <div class="with-unit">
+          <input type="text" id="prodQty-${productCount}" class="prodQty" placeholder="Quantité" />
+          <span class="unit">L</span>
+        </div>`;
+      container.appendChild(item);
+    });
+
+    document.getElementById('removeProductBtn').addEventListener('click', () => {
+      if (productCount > 1) {
         const container = document.getElementById('productContainer');
-        const item = document.createElement('div');
-        item.className = 'product-item';
-        item.innerHTML = `
-          <label for="prodName-${productCount}">Produit utilisé n°${productCount} :</label>
-          <input type="text" id="prodName-${productCount}" class="prodName" placeholder="Nom du produit" />
+        container.removeChild(container.lastElementChild);
+        productCount--;
+      }
+    });
 
-          <label for="prodQty-${productCount}">Quantité du produit n°${productCount} :</label>
-          <div class="with-unit">
-            <input type="text" id="prodQty-${productCount}" class="prodQty" placeholder="Quantité" />
-            <span class="unit">L</span>
-          </div>`;
-        container.appendChild(item);
-      });
+    // Génération PDF
+    document.getElementById('btnGenerate').addEventListener('click', async () => {
+      const num = document.getElementById('facturationNumber').value.trim() || '—';
+      document.getElementById('invoiceTitle').textContent     = `Détail-${num}`;
+      document.getElementById('pdfFactureNumber').textContent = num;
 
-    document.getElementById('removeProductBtn')
-      .addEventListener('click', () => {
-        if (productCount > 1) {
-          const container = document.getElementById('productContainer');
-          container.removeChild(container.lastElementChild);
-          productCount--;
-        }
-      });
+      // Client
+      const snap = await db.ref('Factures/' + num).once('value');
+      if (snap.exists()) {
+        const d = snap.val();
+        document.getElementById('pdfClientNom').textContent    = d.nom    || '—';
+        document.getElementById('pdfClientPrenom').textContent = d.prenom || '—';
+        document.getElementById('pdfClientLieu').textContent   = d.lieu   || '—';
+      }
 
-    // Génération du PDF
-    document.getElementById('btnGenerate')
-      .addEventListener('click', async () => {
-        const num = document.getElementById('facturationNumber').value.trim() || '—';
-        document.getElementById('invoiceTitle').textContent     = `Détail-${num}`;
-        document.getElementById('pdfFactureNumber').textContent = num;
+      // Produits & quantités
+      const prodNames = Array.from(document.querySelectorAll('.prodName'))
+        .map(el => el.value.trim() || '—');
+      const prodQtys  = Array.from(document.querySelectorAll('.prodQty'))
+        .map(el => el.value.trim() || '—');
 
-        // Client
-        const snap = await db.ref('Factures/' + num).once('value');
-        if (snap.exists()) {
-          const d = snap.val();
-          document.getElementById('pdfClientNom').textContent    = d.nom    || '—';
-          document.getElementById('pdfClientPrenom').textContent = d.prenom || '—';
-          document.getElementById('pdfClientLieu').textContent   = d.lieu   || '—';
-        }
+      document.getElementById('pdfProdUtilises').innerHTML = 
+        prodNames.map((n,i) => `- P${i+1}: ${n}`).join('<br/>');
+      document.getElementById('pdfQuantiteProduits').innerHTML = 
+        prodQtys.map((q,i) => `- P${i+1}: ${q}`).join('<br/>');
 
-        // Produits & quantités dynamiques
-        const prodNames = Array.from(document.querySelectorAll('.prodName'))
-          .map(el => el.value.trim() || '—');
-        const prodQtys = Array.from(document.querySelectorAll('.prodQty'))
-          .map(el => el.value.trim() || '—');
+      // Épandage
+      const epProd = document.getElementById('epandageProduit').value.trim() || '—';
+      const epConc = document.getElementById('epandageConcentration').value.trim() || '—';
+      document.getElementById('pdfEpandageProduct').textContent       = epProd;
+      document.getElementById('pdfEpandageConcentration').textContent = epConc;
 
-        const prodHtml = prodNames
-          .map((name, i) => `- P${i+1}: ${name}`)
-          .join('<br/>');
-        const qtyHtml = prodQtys
-          .map((qty, i) => `- P${i+1}: ${qty}`)
-          .join('<br/>');
+      // Météo
+      document.getElementById('pdfTempExterieure').textContent = 
+        document.getElementById('tempExterieure').value.trim() || '—';
+      document.getElementById('pdfTemps').textContent     = 
+        document.getElementById('temps').value;
+      document.getElementById('pdfVent').textContent      = 
+        document.getElementById('vent').value;
+      document.getElementById('pdfDirection').textContent = 
+        document.getElementById('direction').value;
 
-        document.getElementById('pdfProdUtilises').innerHTML      = prodHtml;
-        document.getElementById('pdfQuantiteProduits').innerHTML = qtyHtml;
+      // Affiche template + scroll
+      const tpl = document.getElementById('rapportPDF');
+      tpl.style.display = 'block';
+      window.scrollTo(0,0);
 
-        // Épandage
-        const epProd = document.getElementById('epandageProduit').value.trim() || '—';
-        const epConc = document.getElementById('epandageConcentration').value.trim() || '—';
-        document.getElementById('pdfEpandageProduct').textContent       = epProd;
-        document.getElementById('pdfEpandageConcentration').textContent = epConc;
+      // Options html2pdf
+      const opt = {
+        margin:      [10,10,10,10],
+        filename:    `Détail-${num}.pdf`,
+        jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' },
+        html2canvas: { scale:2, scrollY:0 }
+      };
 
-        // Météo
-        document.getElementById('pdfTempExterieure').textContent = 
-          document.getElementById('tempExterieure').value.trim() || '—';
-        document.getElementById('pdfTemps').textContent          = 
-          document.getElementById('temps').value;
-        document.getElementById('pdfVent').textContent           = 
-          document.getElementById('vent').value;
-        document.getElementById('pdfDirection').textContent      = 
-          document.getElementById('direction').value;
-
-        // Affiche + scroll top
-        const tpl = document.getElementById('rapportPDF');
-        tpl.style.display = 'block';
-        window.scrollTo(0, 0);
-
-        // Options pdf
-        const opt = {
-          margin:      [10, 10, 10, 10],
-          filename:    `Détail-${num}.pdf`,
-          jsPDF:       { unit:'mm', format:'a4', orientation:'portrait' },
-          html2canvas: { scale:2, scrollY:0 }
-        };
-
-        await html2pdf().set(opt).from(tpl).save();
-        tpl.style.display = 'none';
-      });
+      await html2pdf().set(opt).from(tpl).save();
+      tpl.style.display = 'none';
+    });
   </script>
 </body>
 </html>
